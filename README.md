@@ -1,4 +1,4 @@
-# pikol - the wizard bat discord bot (v2)
+# pikol - the wizard bot discord bot (v2)
 
 pikol is a discord bot themed as a magical wizard cat, based on real cat i saw on tiktok
 
