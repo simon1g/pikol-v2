@@ -10,6 +10,7 @@ import os
 import sys
 import random
 import time
+from datetime import datetime
 
 
 with open('config.json') as f:
@@ -75,6 +76,30 @@ class AICommands(commands.Cog):
         self.ollama_available = None
         self.check_task = self.bot.loop.create_task(self.periodic_ollama_check())
         self.cleanup_task = self.bot.loop.create_task(self.cleanup_expired_sessions())
+
+    def log_error(self, command_name, error):
+        """Log errors to the logs directory"""
+        try:
+            timestamp = datetime.now().isoformat()
+            error_type = type(error).__name__
+            error_message = str(error)
+            error_args = getattr(error, 'args', [])
+            
+            log_message = (
+                f"{timestamp}\n"
+                f"Command/Context: {command_name}\n"
+                f"Error Type: {error_type}\n"
+                f"Error Message: {error_message}\n"
+                f"Error Args: {error_args}\n"
+                f"{'='*50}\n"
+            )
+
+            filepath = os.path.join('logs', f'{command_name}_errors.txt')
+            with open(filepath, 'a', encoding='utf-8') as f:
+                f.write(log_message)
+        except Exception as e:
+            print(f"Failed to log error: {e}")
+            print(f"Original error - Type: {type(error).__name__}, Message: {str(error)}")
 
     async def cog_unload(self):
         self.check_task.cancel()
@@ -192,11 +217,11 @@ class AICommands(commands.Cog):
         """Starts a Pikol roleplay session."""
         try:
             if not await self.check_ollama_connection(force_check=True):
-                await interaction.response.send_message(f"*Pikol seems to be napping deeply...* (Ollama server at {OLLAMA_BASE_URL} is not responding).", ephemeral=True)
+                await interaction.response.send_message(f"*pikol seems to be napping deeply...* (ollama server is not responding ask simon).", ephemeral=True)
                 return
 
             if interaction.channel_id in self.active_sessions:
-                 await interaction.response.send_message("A roleplay session is already active in this channel, meow!", ephemeral=True)
+                 await interaction.response.send_message("a roleplay session is already active in this channel, meow!", ephemeral=True)
                  return
 
             await interaction.response.defer(ephemeral=True)
@@ -225,13 +250,13 @@ Rules:
 
             session = RoleplaySession(interaction.channel_id, character_prompt)
             self.active_sessions[interaction.channel_id] = session
-            await interaction.followup.send("*Pikol stretches, wand twitching.* Hi there! What magic shall we conjure today?")
+            await interaction.followup.send("*pikol stretches, wand twitching.* hi there! what magic shall we conjure today?")
             print(f"RP Session started in channel {interaction.channel_id} by {starter_user_name} (ID: {starter_user.id})")
 
         except ValueError as e:
              self.log_error('start_rp', e)
              print(f"Configuration error in start_roleplay: {str(e)}")
-             msg = f"Failed to start roleplay. {str(e)}. Please check the `model` in `config.json`."
+             msg = f"failed to start roleplay ({str(e)}. send it to simon)"
              if not interaction.response.is_done():
                   await interaction.response.send_message(msg, ephemeral=True)
              else:
@@ -243,7 +268,7 @@ Rules:
         except Exception as e:
             self.log_error('start_rp', e)
             print(f"Error in start_roleplay: {type(e).__name__} - {str(e)}")
-            msg = "Something went wrong starting the magic... *confused meow*"
+            msg = "something went wrong starting the magic... *confused meow*"
             if not interaction.response.is_done():
                  await interaction.response.send_message(msg, ephemeral=True)
             else:
@@ -259,9 +284,9 @@ Rules:
             del self.active_sessions[interaction.channel_id]
             ender_user_name = interaction.user.display_name
             print(f"RP Session ended in channel {interaction.channel_id} by {ender_user_name}")
-            await interaction.response.send_message("*Pikol yawns, waves his tiny wand fizzling out sparks, and curls up for a nap.* Until next time! Roleplay ended. ✨")
+            await interaction.response.send_message("*pikol yawns, waves his tiny wand fizzling out sparks, and curls up for a nap.* until next time! roleplay ended. ✨")
         else:
-            await interaction.response.send_message("There's no active roleplay session to end here...", ephemeral=True)
+            await interaction.response.send_message("there's no active roleplay session to end here...", ephemeral=True)
 
 
     @commands.Cog.listener()
@@ -281,12 +306,12 @@ Rules:
 
         if session.is_expired():
             del self.active_sessions[message.channel.id]
-            await message.channel.send("*Pikol yawns, waves his tiny wand fizzling out sparks, and curls up for a nap.* The roleplay session has expired due to inactivity. ✨")
+            await message.channel.send("*pikol yawns, waves his tiny wand fizzling out sparks, and curls up for a nap.* the roleplay session has expired due to inactivity. ✨")
             return
 
         if not self.ollama_available:
             if random.random() < 0.2:
-                await message.channel.send("*Pikol seems lost in thought* The magical connection is weak? (Ollama unavailable)")
+                await message.channel.send("*pikol seems lost in thought* the magical connection is weak? (ollama unavailable)")
             return
 
         user_name = message.author.display_name
@@ -303,8 +328,8 @@ Rules:
                 else:
                     empty_responses = [
                         "*Pikol just blinks slowly...*",
-                        "*Pikol chases his tail for a moment, forgetting the question.*",
-                        "*Pikol sniffs the air curiously but says nothing.*",
+                        "*Pikol chases his tail for a moment, forgetting the question*",
+                        "*Pikol sniffs the air curiously but says nothing*",
                         "Meow? *tilts head*",
                     ]
                     fallback_response = random.choice(empty_responses)
@@ -312,15 +337,15 @@ Rules:
                     await message.channel.send(fallback_response)
 
         except ConnectionError as e:
-            await message.channel.send(f"*Pikol's magic fizzles. Seems the connection is lost...* ({e})")
+            await message.channel.send(f"*pikol's magic fizzles. seems the connection is lost...*")
             self.ollama_available = False
         except TimeoutError:
-             await message.channel.send("*Pikol is concentrating very hard... maybe too hard?* The magic words are slow today, meow. Try again?")
+             await message.channel.send("*pikol is concentrating very hard... maybe too hard?* the magic words are slow today, meow")
         except ValueError as e:
-            await message.channel.send(f"*Pikol paws at his wand, but nothing happens!* There's a problem with the magic source: {e}")
+            await message.channel.send(f"*pikol paws at his wand, but nothing happens!* there's a problem with the magic source...)")
             self.log_error('on_message_ai', e)
         except Exception as e:
-            await message.channel.send("*Poof! A magical mishap!* Something went wrong with Pikol's spellcasting...")
+            await message.channel.send("*poof! a magical explosion!* something went wrong with pikol's spellcasting...")
             self.log_error('on_message_ai', e)
             print(f"Error processing AI response in {message.channel.id}: {type(e).__name__} - {e}")
 
