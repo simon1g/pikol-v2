@@ -61,7 +61,18 @@ def save_server_data(server_id, data):
 
 def log_error(command_name, error):
     timestamp = datetime.now().isoformat()
-    log_message = f"{timestamp} - Error: {error}\n"
+    error_type = type(error).__name__
+    error_message = str(error)
+    error_args = getattr(error, 'args', [])
+    
+    log_message = (
+        f"{timestamp}\n"
+        f"Command/Context: {command_name}\n"
+        f"Error Type: {error_type}\n"
+        f"Error Message: {error_message}\n"
+        f"Error Args: {error_args}\n"
+        f"{'='*50}\n"
+    )
 
     filepath = os.path.join(LOG_DIR, f'{command_name}_errors.txt')
     try:
@@ -103,12 +114,29 @@ def restock_shop():
 
     return shop
 
+def ensure_users_in_server_data(guild, data):
+    changes_made = False
+    for member in guild.members:
+        if not member.bot:
+            user_id = str(member.id)
+            if user_id not in data['balance']:
+                data['balance'][user_id] = random.randint(80, 120)
+                changes_made = True
+            if user_id not in data['inventory']:
+                data['inventory'][user_id] = {}
+                changes_made = True
+    return changes_made
+
 @tasks.loop(minutes=10)
 async def restock_shops_task():
     print(f"Task: Running restock_shops at {datetime.now()}")
     for guild in bot.guilds:
         try:
             data = load_server_data(guild.id)
+            # Check for new users before restocking
+            if ensure_users_in_server_data(guild, data):
+                print(f"Added new users to server {guild.id}")
+            
             data['shop'] = restock_shop()
             data['next_restock'] = (datetime.now() + timedelta(minutes=10)).isoformat()
             save_server_data(guild.id, data)
@@ -172,6 +200,17 @@ async def on_ready():
     print(f'Logged in as {bot.user.name} (ID: {bot.user.id})')
     print(f'Discord.py Version: {discord.__version__}')
     print('------')
+
+    print("Checking all servers and users...")
+    for guild in bot.guilds:
+        try:
+            data = load_server_data(guild.id)
+            if ensure_users_in_server_data(guild, data):
+                save_server_data(guild.id, data)
+                print(f"Updated user data for server: {guild.name} (ID: {guild.id})")
+        except Exception as e:
+            log_error(f'startup_guild_{guild.id}', e)
+            print(f"Error processing startup data for guild {guild.id}: {e}")
 
     print("Loading cogs...")
     loaded_cogs = 0
@@ -238,7 +277,7 @@ async def on_message(message: discord.Message):
         content_lower = content.lower()
 
         meow_responses = ['Meow', 'MEOW', '~meow~🪄', f'meow {pikol_str}', f'{wizard_pikol_str}🪄', '*purrrr*', '...?']
-        mention_responses = ['Meow?', 'Yes, meow?', '*tilts head*', f'{pikol_str}?', f'{wizard_pikol_str}!', 'You called, meow?']
+        mention_responses = ['Meow?', 'Yes, meow?', '*tilts head*', f'{pikol_str}?', f'{wizard_pikol_str}!', 'you called, meow?']
 
         if not message.channel:
             return
@@ -246,28 +285,59 @@ async def on_message(message: discord.Message):
         try:
             if 'meow' in content_lower and is_direct_mention:
                 await message.channel.send(str(random.choice(meow_responses)))
-            elif 'meow' in content_lower and random.random() < 0.2:
+            elif 'meow' in content_lower and random.random() < 0.5:
                 await message.channel.send(str(random.choice(meow_responses)))
             elif is_direct_mention:
                 await message.channel.send(str(random.choice(mention_responses)))
         except discord.errors.Forbidden:
+            log_error('message_response', 'Missing permissions to send message in channel')
             pass
         except Exception as response_error:
+            log_error('message_response', response_error)
             print(f"Error sending response: {response_error}")
 
     except Exception as e:
-        error_info = f"Error Type: {type(e)}\nError Message: {str(e)}\nError Args: {getattr(e, 'args', [])}"
+        error_info = {
+            'type': type(e).__name__,
+            'message': str(e),
+            'args': getattr(e, 'args', []),
+            'channel': getattr(message, 'channel', None),
+            'guild': getattr(message.guild, 'name', 'N/A') if message.guild else 'N/A'
+        }
         log_error('on_message_basic', error_info)
         print(f"Error in on_message handler: {error_info}")
 
+@bot.event
+async def on_member_join(member):
+    if member.bot:
+        return
+    
+    try:
+        data = load_server_data(member.guild.id)
+        user_id = str(member.id)
+        
+        if user_id not in data['balance']:
+            data['balance'][user_id] = random.randint(80, 120)
+        if user_id not in data['inventory']:
+            data['inventory'][user_id] = {}
+            
+        save_server_data(member.guild.id, data)
+        print(f"Added new user {member.name} (ID: {member.id}) to server {member.guild.name}")
+        
+    except Exception as e:
+        log_error(f'member_join_{member.guild.id}', e)
+        print(f"Error processing new member {member.id} for guild {member.guild.id}: {e}")
+
 if __name__ == "__main__":
     if not TOKEN:
+        log_error('bot_startup', 'Bot token missing')
         print("CRITICAL: Bot token is missing! Please set your Discord bot token in the TOKEN variable.")
     else:
         try:
             bot.run(TOKEN)
-        except discord.LoginFailure:
+        except discord.LoginFailure as e:
+            log_error('bot_login', f'Failed to log in: {e}')
             print("CRITICAL: Failed to log in. Please check that your Discord bot token is correct.")
         except Exception as e:
+            log_error('bot_run', f'Critical bot error: {e}')
             print(f"CRITICAL: An error occurred while running the bot: {e}")
-            log_error('bot_run', e)

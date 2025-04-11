@@ -23,7 +23,7 @@ class PaginationView(discord.ui.View):
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id != self.original_interaction.user.id:
-            await interaction.response.send_message("This isn't your collection!", ephemeral=True)
+            await interaction.response.send_message("this isn't your collection!", ephemeral=True)
             return False
         return True
 
@@ -53,15 +53,15 @@ class PaginationView(discord.ui.View):
         progress_bar = '█' * filled + '░' * (segments - filled)
 
         embed = discord.Embed(
-            title="🧪 Your Potion Collection 🪄",
-            description=f"Collection Progress: {self.unique_count}/{self.total_potions_possible} unique potions discovered.\n({collection_percentage:.2f}%) {progress_bar}",
+            title="🧪 your Potion Collection 🪄",
+            description=f"collection progress: {self.unique_count}/{self.total_potions_possible} unique potions discovered.\n({collection_percentage:.2f}%) {progress_bar}",
             color=discord.Color.purple()
         )
 
         if not self.pages:
-             embed.description += "\n\nYour collection is empty! Go buy some potions, meow!"
+             embed.description += "\n\nyour collection is empty! go buy some potions, meow!"
         elif page_num >= len(self.pages):
-             embed.description += "\n\nSomething went wrong with pagination!"
+             embed.description += "\n\nsomething went wrong with pagination!!!"
              page_num = 0
              self.current_page = 0
         else:
@@ -75,10 +75,10 @@ class PaginationView(discord.ui.View):
                      inline=False
                  )
 
-        embed.set_footer(text=f"Page {page_num + 1}/{len(self.pages)}" if self.pages else "Page 1/1")
+        embed.set_footer(text=f"page {page_num + 1}/{len(self.pages)}" if self.pages else "page 1/1")
         return embed
 
-    @discord.ui.button(label="Previous", style=discord.ButtonStyle.secondary, custom_id="previous_page", disabled=True)
+    @discord.ui.button(label="previous", style=discord.ButtonStyle.secondary, custom_id="previous_page", disabled=True)
     async def previous_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.current_page > 0:
             self.current_page -= 1
@@ -88,7 +88,7 @@ class PaginationView(discord.ui.View):
             await interaction.response.defer()
 
 
-    @discord.ui.button(label="Next ~meow", style=discord.ButtonStyle.secondary, custom_id="next_page")
+    @discord.ui.button(label="next ~meow", style=discord.ButtonStyle.secondary, custom_id="next_page")
     async def next_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         if self.current_page < len(self.pages) - 1:
             self.current_page += 1
@@ -123,42 +123,49 @@ class CollectionCommands(commands.Cog):
     @app_commands.command(name="collection", description="View your collected potions MEOW!!!")
     async def collection(self, interaction: discord.Interaction):
         try:
-            await interaction.response.defer(ephemeral=True)
+            await interaction.response.defer()
 
             server_id = interaction.guild.id
             user_id = str(interaction.user.id)
             data = self.load_server_data(server_id)
 
             if user_id not in data.get("inventory", {}) or not data["inventory"][user_id]:
-                await interaction.followup.send("You have not collected any potions yet... meow.....", ephemeral=True)
+                await interaction.followup.send("you have not collected any potions yet... meow.....")
                 return
 
             inventory_dict = data["inventory"][user_id]
-            inventory_list = list(inventory_dict.values())
+            
+            inventory_items = []
+            for potion_name, quantity in inventory_dict.items():
+                potion_data = next((p for p in self.ALL_POTIONS_DATA if p["name"] == potion_name), None)
+                if potion_data:
+                    potion_item = potion_data.copy()
+                    potion_item["quantity"] = quantity
+                    inventory_items.append(potion_item)
 
-            sorted_inventory = sorted(inventory_list, key=lambda p: (p.get("rarity", 99), p.get("name", "")))
+            sorted_inventory = sorted(inventory_items, key=lambda p: (p.get("rarity", 99), p.get("name", "")))
             unique_count = len(sorted_inventory)
 
             per_page = 5
             pages = [sorted_inventory[i:i + per_page] for i in range(0, len(sorted_inventory), per_page)]
 
             if not pages:
-                 await interaction.followup.send("Your collection seems empty after sorting! MEOW!", ephemeral=True)
-                 return
+                await interaction.followup.send("your collection seems empty after sorting! MEOW!")
+                return
 
             view = PaginationView(pages, self.TOTAL_POTIONS_POSSIBLE, unique_count, interaction)
             view.update_button_states()
             initial_embed = view.create_embed()
 
-            view.message = await interaction.followup.send(embed=initial_embed, view=view, ephemeral=True)
+            view.message = await interaction.followup.send(embed=initial_embed, view=view)
 
         except Exception as e:
             self.log_error('collection', e)
             print(f"Error in collection command: {e}")
             if interaction.response.is_done():
-                 await interaction.followup.send("Couldn't show your collection... *sad kitty noises*", ephemeral=True)
+                await interaction.followup.send("couldn't show your collection... *sad kitty noises*")
             else:
-                 await interaction.response.send_message("Couldn't show your collection... *sad kitty noises*", ephemeral=True)
+                await interaction.response.send_message("couldn't show your collection... *sad kitty noises*")
 
 
 async def setup(bot):

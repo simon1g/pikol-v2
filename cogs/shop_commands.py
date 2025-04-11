@@ -20,27 +20,27 @@ PURCHASE_RESPONSES = [
     "MEOWEST PURCHASE! ⚗️{user} got {potion}{quantity} for {price} coins!",
     "*purrs* 🧪 {user} now owns {potion} 🪄 {quantity}! paid {price} 🪙 ~meow~",
     "⚗️ *happy meow* ⚗️ {user} took {potion}{quantity} home for {price} coins!",
-    "The meowest choice! 🧪 {user} bought {potion}{quantity} for {price} coins 🪙!",
+    "the meowest choice! 🧪 {user} bought {potion}{quantity} for {price} coins 🪙!",
     "PIKOL APPROVED! 🪄 {user} got {potion}{quantity} for {price} coins!"
 ]
 
 EMPTY_SHOP_MESSAGES = [
-    "Pikol is taking a cat nap! Come back in {minutes} minutes! *purrs*\nYour balance: {balance} 🪙",
-    "The shop is empty! Pikol went to cast some spells! Return in {minutes} minutes!\nYour balance: {balance} 🪙",
-    "Pikol spilled all the potions... Clean up will take {minutes} minutes!\nYour balance: {balance} 🪙",
-    "Pikol is out gathering rare ingredients! Check back in {minutes} minutes!\nYour balance: {balance} 🪙",
-    "*meow?* Shop's closed for restocking! Try again in {minutes} minutes!\nYour balance: {balance} 🪙",
-    "Pikol is brewing new potions! Come back in {minutes} minutes!\nYour balance: {balance} 🪙",
-    "The cauldron needs {minutes} minutes to heat up! *happy cat noises*\nYour balance: {balance} 🪙",
-    "Pikol got tangled in magic yarn! Return in {minutes} minutes!\nYour balance: {balance} 🪙",
-    "Pikol is chasing potion bubbles! dumb dumb! Come again in {minutes} minutes!\nYour balance: {balance} 🪙"
+    "pikol is taking a cat nap! come back in {minutes} minutes!\nYour balance: {balance} 🪙",
+    "the shop is empty! pikol went to cast some spells! return in {minutes} minutes!\nYour balance: {balance} 🪙",
+    "pikol spilled all the potions... clean up will take {minutes} minutes!\nYour balance: {balance} 🪙",
+    "pikol is out gathering rare ingredients! check back in {minutes} minutes!\nYour balance: {balance} 🪙",
+    "*meow?* shop's closed for restocking! try again in {minutes} minutes!\nYour balance: {balance} 🪙",
+    "pikol is brewing new potions! come back in {minutes} minutes!\nYour balance: {balance} 🪙",
+    "the cauldron needs {minutes} minutes to heat up! *happy cat noises*\nYour balance: {balance} 🪙",
+    "pikol got tangled in magic yarn! return in {minutes} minutes!\nYour balance: {balance} 🪙",
+    "pikol is chasing potion bubbles! dumb dumb! come again in {minutes} minutes!\nYour balance: {balance} 🪙"
 ]
 
 NO_COINS_MESSAGES = [
-    "You don't have enough coins! **MEOW!** 🪄",
-    "*sad cat noises* Your coin purse is too light! 🪙",
-    "Not enough in your pocket! *meoww* ⭐",
-    "**MEOW MEOW!** Come back with more coins!"
+    "you don't have enough coins! **MEOW!** 🪄",
+    "*sad cat noises* your coin purse is too light! 🪙",
+    "not enough in your pocket! *meoww* ⭐",
+    "**MEOW MEOW!** come back with more coins!"
 ]
 
 class ShopCommands(commands.Cog):
@@ -123,12 +123,12 @@ class ShopCommands(commands.Cog):
 
             embed = discord.Embed(
                 title="🔮 Pikol's Potion Shop 🪄",
-                description=f"Welcome *~meow~*! Your balance: {current_balance} 🪙\nNext restock in: {minutes_until_restock} minutes",
+                description=f"welcome *~meow~*! your balance: {current_balance} 🪙\nnext restock in: {minutes_until_restock} minutes",
                 color=discord.Color.blurple()
             )
 
             if not shop_items:
-                 embed.description = f"Pikol is restocking! Check back in {minutes_until_restock} minutes!\nYour balance: {current_balance} 🪙"
+                 embed.description = f"pikol is restocking! Check back in {minutes_until_restock} minutes!\nyour balance: {current_balance} 🪙"
                  embed.color = discord.Color.red()
                  await interaction.followup.send(embed=embed)
                  return
@@ -138,7 +138,7 @@ class ShopCommands(commands.Cog):
                  rarity_emoji = get_rarity_emoji(potion["rarity"])
                  embed.add_field(
                      name=f"{i+1}. {rarity_emoji} {potion['name']}",
-                     value=f"Price: {potion['price']} 🪙",
+                     value=f"price: {potion['price']} 🪙",
                      inline=False
                  )
 
@@ -147,77 +147,66 @@ class ShopCommands(commands.Cog):
             for i, potion_data in enumerate(shop_items):
                 if i >= 4: break
                 rarity_emoji = get_rarity_emoji(potion_data["rarity"])
+                
+                class ButtonHandler:
+                    def __init__(self, index, shop_commands):
+                        self.index = index
+                        self.shop_commands = shop_commands
+
+                    async def callback(self, interaction: discord.Interaction):
+                        try:
+                            await interaction.response.defer(ephemeral=True)
+                            
+                            guild_data = self.shop_commands.load_server_data(interaction.guild_id)
+                            shop = guild_data.get('shop', [])
+                            
+                            if self.index >= len(shop):
+                                await interaction.followup.send("this item is no longer available! *sad meow*", ephemeral=True)
+                                return
+                                
+                            item = shop[self.index]
+                            user_id = str(interaction.user.id)
+                            
+                            if user_id not in guild_data['balance']:
+                                guild_data['balance'][user_id] = random.randint(80, 120)
+                            if user_id not in guild_data['inventory']:
+                                guild_data['inventory'][user_id] = {}
+                                
+                            if guild_data['balance'][user_id] < item['price']:
+                                await interaction.followup.send("you don't have enough coins! *sad meow*", ephemeral=True)
+                                return
+                                
+                            guild_data['balance'][user_id] -= item['price']
+                            guild_data['inventory'][user_id][item['name']] = guild_data['inventory'][user_id].get(item['name'], 0) + 1
+                            guild_data['shop'].pop(self.index)
+                            
+                            self.shop_commands.save_server_data(interaction.guild_id, guild_data)
+                            
+                            purchase_message = f"you bought a {item['name']} for {item['price']} coins! *happy meow*"
+                            try:
+                                await interaction.followup.send(purchase_message, ephemeral=True)
+                            except discord.NotFound:
+                                try:
+                                    await interaction.response.send_message(purchase_message, ephemeral=True)
+                                except discord.NotFound:
+                                    print(f"Failed to respond to interaction - both followup and response failed")
+                                    return
+                                    
+                        except Exception as e:
+                            self.shop_commands.log_error('shop_button_callback', e)
+                            try:
+                                await interaction.followup.send("an error occurred while processing your purchase! *sad meow*", ephemeral=True)
+                            except:
+                                print(f"Failed to send error message for shop purchase: {str(e)}")
+
                 button = discord.ui.Button(
-                    label=f"Buy {i+1} {rarity_emoji}",
-                    custom_id=f"buy_{server_id}_{i}",
+                    label=f"buy {i+1} {rarity_emoji}",
+                    custom_id=f"buy_{i}",
                     style=discord.ButtonStyle.secondary
                 )
-
-                async def button_callback(interaction: discord.Interaction, current_index=i):
-                    callback_data = self.load_server_data(interaction.guild.id)
-                    callback_user_id = str(interaction.user.id)
-
-                    if interaction.user.id != original_user.id:
-                        await interaction.response.send_message("This is not your shop session! Use `/shop` yourself, meow!", ephemeral=True)
-                        return
-
-                    if 'shop' not in callback_data or not callback_data['shop'] or current_index >= len(callback_data['shop']):
-                        await interaction.response.edit_message(content="*Meow?* The shop changed or this item is gone!", embed=None, view=None)
-                        return
-
-                    potion_to_buy = callback_data['shop'][current_index]
-                    user_balance = callback_data['balance'].get(callback_user_id, 0)
-
-                    if user_balance < potion_to_buy['price']:
-                        await interaction.response.send_message(random.choice(NO_COINS_MESSAGES), ephemeral=True)
-                        return
-
-                    try:
-                        callback_data['balance'][callback_user_id] -= potion_to_buy['price']
-
-                        potion_key = f"{potion_to_buy['name']}_{potion_to_buy['rarity']}"
-                        if callback_user_id not in callback_data['inventory']:
-                             callback_data['inventory'][callback_user_id] = {}
-
-                        if potion_key not in callback_data['inventory'][callback_user_id]:
-                            potion_copy = {
-                                "name": potion_to_buy["name"],
-                                "rarity": potion_to_buy["rarity"],
-                                "quantity": 1
-                            }
-                            callback_data['inventory'][callback_user_id][potion_key] = potion_copy
-                            new_quantity_text = ""
-                        else:
-                            callback_data['inventory'][callback_user_id][potion_key]['quantity'] += 1
-                            new_quantity = callback_data['inventory'][callback_user_id][potion_key]['quantity']
-                            new_quantity_text = f" (Now you have {new_quantity}!)"
-
-                        removed_potion = callback_data['shop'].pop(current_index)
-                        self.save_server_data(interaction.guild.id, callback_data)
-
-                        for item in view.children:
-                            if isinstance(item, discord.ui.Button):
-                                item.disabled = True
-                        await interaction.message.edit(view=view)
-
-                        purchase_message = random.choice(PURCHASE_RESPONSES).format(
-                            user=interaction.user.mention,
-                            potion=removed_potion['name'],
-                            price=removed_potion['price'],
-                            quantity=new_quantity_text
-                        )
-                        await interaction.followup.send(purchase_message)
-                        await interaction.response.defer()
-
-                    except Exception as e:
-                        self.log_error('shop_button_callback', e)
-                        print(f"Button callback error: {e}")
-                        try:
-                            await interaction.response.send_message("Error processing purchase! *sad meow*", ephemeral=True)
-                        except discord.InteractionResponded:
-                             await interaction.followup.send("Error processing purchase! *sad meow*", ephemeral=True)
-
-                button.callback = button_callback
+                
+                handler = ButtonHandler(i, self)
+                button.callback = handler.callback
                 view.add_item(button)
 
             await interaction.followup.send(embed=embed, view=view)
@@ -226,9 +215,9 @@ class ShopCommands(commands.Cog):
             self.log_error('shop', e)
             print(f"Error in shop command: {e}")
             if interaction.response.is_done():
-                await interaction.followup.send("Something went wrong displaying the shop! *confused meow*", ephemeral=True)
+                await interaction.followup.send("something went wrong displaying the shop! *confused meow*", ephemeral=True)
             else:
-                 await interaction.response.send_message("Something went wrong displaying the shop! *confused meow*", ephemeral=True)
+                 await interaction.response.send_message("something went wrong displaying the shop! *confused meow*", ephemeral=True)
 
 async def setup(bot):
     await bot.add_cog(ShopCommands(bot))
