@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  pikol:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./logs:/app/logs
+      - ./servers:/app/servers
+    environment:
+      - TOKEN=${TOKEN}
+      - OLLAMA_HOST=${OLLAMA_HOST}
+      - OLLAMA_PORT=${OLLAMA_PORT}
+
+volumes:
+  ollama_data:

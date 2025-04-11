@@ -276,8 +276,8 @@ async def on_message(message: discord.Message):
         is_direct_mention = bot.user.id in [u.id for u in message.mentions] if message.mentions else False
         content_lower = content.lower()
 
-        meow_responses = ['Meow', 'MEOW', '~meow~🪄', f'meow {pikol_str}', f'{wizard_pikol_str}🪄', '*purrrr*', '...?']
-        mention_responses = ['Meow?', 'Yes, meow?', '*tilts head*', f'{pikol_str}?', f'{wizard_pikol_str}!', 'you called, meow?']
+        meow_responses = ['Meow', 'MEOW', '~meow~🪄', f'meow {pikol_str}', f'{wizard_pikol_str}🪄']
+        mention_responses = ['Meow?', 'Yes, meow?', '*tilts head*', f'{pikol_str}?', f'{wizard_pikol_str}🪄!', 'you called, meow?']
 
         if not message.channel:
             return
