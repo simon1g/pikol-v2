@@ -12,6 +12,9 @@ services:
       - TOKEN=${TOKEN}
       - OLLAMA_HOST=${OLLAMA_HOST}
       - OLLAMA_PORT=${OLLAMA_PORT}
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
 
 volumes:
   ollama_data:
