@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    restart: unless-stopped
     volumes:
       - ./logs:/app/logs
       - ./servers:/app/servers
